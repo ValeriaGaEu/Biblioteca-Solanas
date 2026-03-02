@@ -1,122 +1,154 @@
-use anchor_lang::prelude::*; //Se utiliza el 100% de todos los casos
+use anchor_lang::prelude::*;
 
 declare_id!("AeJXgVqtWz1n1vw5XiTaEnf7mvJ69jjtLuU2txeshsbu");
 
-#[program] //Significa que el código va a ser usado en el programa
-pub mod biblioteca{
-    use super::*; //Exportar todo el código
+#[program]
+pub mod tienda_cosmeticos {
+    use super::*;
 
-    pub fn crear_biblioteca(context: Context<NuevaBiblioteca>, nombre: String) -> Result<()>{
-        let owner_id = context.accounts.owner.key();
-        let libros: Vec<Libros> = Vec::new();
-
-        context.accounts.biblioteca.set_inner(Biblioteca {
-            owner: owner_id,
+    pub fn crear_tienda(context: Context<NuevaTienda>, nombre: String, ubicacion: String, hora_apertura: u8, hora_cierre: u8,) -> Result<()> {
+        require!(hora_apertura < 24 && hora_cierre < 24, Errores::HoraInvalida);
+        context.accounts.tienda.set_inner(Tienda {
+            owner: context.accounts.owner.key(),
             nombre,
-            libros,
-        }); 
-
+            ubicacion,
+            hora_apertura,
+            hora_cierre,
+            productos: Vec::new(),
+            total_ventas: 0,
+        });
         Ok(())
     }
 
-    pub fn agregar_libro(context: Context<NuevoLibro>, nombre: String, paginas: u16) -> Result<()>{
-        let libro= Libros{
-            nombre: nombre,
-            paginas,
+    pub fn agregar_producto(context: Context<ModificarTienda>, nombre: String, categoria: String, precio: u64, stock: u16,) -> Result<()> {
+        let tienda = &mut context.accounts.tienda;
+        for producto in &tienda.productos {
+            require!(producto.nombre != nombre, Errores::ProductoYaExiste);
+        }
+        let nuevo_producto = Producto {
+            nombre,
+            categoria,
+            precio,
+            stock,
             disponible: true,
         };
-
-        context.accounts.biblioteca.libros.push(libro);
-
+        tienda.productos.push(nuevo_producto);
         Ok(())
     }
 
-    pub fn ver_libros(context: Context<NuevoLibro>) -> Result<()>{
-        let libros = &context.accounts.biblioteca.libros;
-        msg!("La lista de libros es: {:#?}", libros);
+        pub fn comprar_producto( context: Context<ModificarTienda>, nombre: String,) -> Result<()> {
+    let tienda = &mut context.accounts.tienda;
 
-        Ok(())
+    for i in 0..tienda.productos.len() {
+        if tienda.productos[i].nombre == nombre {
+            require!(tienda.productos[i].stock > 0, Errores::SinStock);
+            let precio = tienda.productos[i].precio;
+            tienda.productos[i].stock -= 1;
+            tienda.total_ventas += precio;
+            if tienda.productos[i].stock == 0 {
+                tienda.productos[i].disponible = false;
+            }
+            return Ok(());
+        }
     }
-    pub fn eliminar_libro(context: Context<NuevoLibro>, nombre:String) -> Result<()>{
-        let libros = &mut context.accounts.biblioteca.libros;
-
-        for libro in 0..libros.len(){
-            if libros[libro].nombre == nombre {
-                libros.remove( libro );
-                msg!("Libro {nombre} eliminado!");
-                return Ok(())
+    Err(Errores::ProductoNoExiste.into())
+}
+    pub fn actualizar_precio(context: Context<ModificarTienda>,nombre: String,nuevo_precio: u64,) -> Result<()> {
+        let tienda = &mut context.accounts.tienda;
+        for producto in &mut tienda.productos {
+            if producto.nombre == nombre {
+                producto.precio = nuevo_precio;
+                return Ok(());
             }
         }
-        Err(Errores::LibroNoExiste.into()) 
-    }
-     pub fn alternar_estado(context: Context<NuevoLibro>, nombre : String ) -> Result<()>{
-        let libros = &mut context.accounts.biblioteca.libros;
-
-        for libro in 0..libros.len(){
-            let estado = libros[libro].disponible;
-
-            if libros[libro].nombre == nombre {
-                let nuevo_estado = !estado;
-                libros[libro].disponible = nuevo_estado;
-
-                msg!("El libro: {} ahora tiene un valor de disponibilidad: {}", nombre, nuevo_estado);
-                return Ok(())
-            }
-        }
-        Err(Errores::LibroNoExiste.into()) 
+        Err(Errores::ProductoNoExiste.into())
     }
 }
 
 #[error_code]
 pub enum Errores {
-    #[msg("Error, no eres propietario de la cuenta")]
-     NoEresElOwer,
-     #[msg("Error, el libro proporcionado no existe")]
-     LibroNoExiste,
+    #[msg("No eres el dueño de la tienda")]
+    NoEresElOwner,
+
+    #[msg("El producto no existe")]
+    ProductoNoExiste,
+
+    #[msg("El producto ya existe")]
+    ProductoYaExiste,
+
+    #[msg("No hay stock disponible")]
+    SinStock,
+
+    #[msg("Hora inválida (0-23)")]
+    HoraInvalida,
 }
 
 #[account]
 #[derive(InitSpace)]
-pub struct Biblioteca{
-    owner: Pubkey,
+pub struct Tienda {
+
+    pub owner: Pubkey,
 
     #[max_len(60)]
-    nombre: String,
+    pub nombre: String,
 
-    #[max_len(10)]
-    libros: Vec<Libros>,
-} 
+    #[max_len(100)]
+    pub ubicacion: String,
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Debug)]
-pub struct Libros {
+    pub hora_apertura: u8,
+    pub hora_cierre: u8,
+
+    #[max_len(40)]
+    pub productos: Vec<Producto>,
+
+    pub total_ventas: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, Debug, PartialEq)]
+pub struct Producto {
+
     #[max_len(60)]
-    nombre: String,
+    pub nombre: String,
 
-    paginas: u16,
-    
-    disponible: bool,
+    #[max_len(40)]
+    pub categoria: String,
+
+    pub precio: u64,
+
+    pub stock: u16,
+
+    pub disponible: bool,
 }
 
 #[derive(Accounts)]
-pub struct NuevaBiblioteca<'info> {
+pub struct NuevaTienda<'info> {
+
     #[account(mut)]
     pub owner: Signer<'info>,
 
     #[account(
         init,
         payer = owner,
-        space = Biblioteca::INIT_SPACE + 8,
-        seeds = [b"biblioteca", owner.key().as_ref()],
+        space = Tienda::INIT_SPACE + 8,
+        seeds = [b"tienda_cosmeticos", owner.key().as_ref()],
         bump
     )]
-    pub biblioteca: Account<'info, Biblioteca>,
+    pub tienda: Account<'info, Tienda>,
 
     pub system_program: Program<'info, System>,
 }
 
-#[derive(Accounts)] 
-pub struct NuevoLibro<'info> {
-    pub owner: Signer<'info>, 
-    #[account(mut)] 
-    pub biblioteca: Account<'info, Biblioteca>, 
+#[derive(Accounts)]
+pub struct ModificarTienda<'info> {
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"tienda_cosmeticos", owner.key().as_ref()],
+        bump,
+        constraint = tienda.owner == owner.key() @ Errores::NoEresElOwner
+    )]
+    pub tienda: Account<'info, Tienda>,
 }
