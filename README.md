@@ -30,7 +30,10 @@ Owner (Wallet)
             ├── Producto A (PDA)
             ├── Producto B (PDA)
             └── Producto C (PDA)
+            
 🧱 Estructuras Principales
+
+
 🏪 Tienda
 Campo	Tipo	Descripción
 owner	Pubkey	Wallet del propietario
@@ -38,6 +41,7 @@ nombre	String	Nombre de la tienda
 ubicacion	String	Dirección física
 hora_apertura	u8	Hora de apertura
 hora_cierre	u8	Hora de cierre
+
 💋 Producto
 Campo	Tipo	Descripción
 tienda	Pubkey	Tienda a la que pertenece
@@ -45,6 +49,7 @@ nombre	String	Nombre del producto
 categoria	String	Ej: Labial, Base, Perfume
 precio	u64	Precio del producto
 stock	u16	Cantidad disponible
+
 ⚙️ Instrucciones del Programa
 Instrucción	Descripción
 crear_tienda(nombre, ubicacion, apertura, cierre)	Crea la tienda vinculada al propietario
