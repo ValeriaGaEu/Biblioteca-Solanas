@@ -1,56 +1,122 @@
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::*; //Se utiliza el 100% de todos los casos
 
-declare_id!();
+declare_id!("AeJXgVqtWz1n1vw5XiTaEnf7mvJ69jjtLuU2txeshsbu");
 
-#[program]
-pub mod biblioteca {
-    use super::*;
+#[program] //Significa que el código va a ser usado en el programa
+pub mod biblioteca{
+    use super::*; //Exportar todo el código
 
-    pub fn crear_biblioteca() -> Result<()>{
-        //codigo...
+    pub fn crear_biblioteca(context: Context<NuevaBiblioteca>, nombre: String) -> Result<()>{
+        let owner_id = context.accounts.owner.key();
+        let libros: Vec<Libros> = Vec::new();
+
+        context.accounts.biblioteca.set_inner(Biblioteca {
+            owner: owner_id,
+            nombre,
+            libros,
+        }); 
+
+        Ok(())
     }
+
+    pub fn agregar_libro(context: Context<NuevoLibro>, nombre: String, paginas: u16) -> Result<()>{
+        let libro= Libros{
+            nombre: nombre,
+            paginas,
+            disponible: true,
+        };
+
+        context.accounts.biblioteca.libros.push(libro);
+
+        Ok(())
+    }
+
+    pub fn ver_libros(context: Context<NuevoLibro>) -> Result<()>{
+        let libros = &context.accounts.biblioteca.libros;
+        msg!("La lista de libros es: {:#?}", libros);
+
+        Ok(())
+    }
+    pub fn eliminar_libro(context: Context<NuevoLibro>, nombre:String) -> Result<()>{
+        let libros = &mut context.accounts.biblioteca.libros;
+
+        for libro in 0..libros.len(){
+            if libros[libro].nombre == nombre {
+                libros.remove( libro );
+                msg!("Libro {nombre} eliminado!");
+                return Ok(())
+            }
+        }
+        Err(Errores::LibroNoExiste.into()) 
+    }
+     pub fn alternar_estado(context: Context<NuevoLibro>, nombre : String ) -> Result<()>{
+        let libros = &mut context.accounts.biblioteca.libros;
+
+        for libro in 0..libros.len(){
+            let estado = libros[libro].disponible;
+
+            if libros[libro].nombre == nombre {
+                let nuevo_estado = !estado;
+                libros[libro].disponible = nuevo_estado;
+
+                msg!("El libro: {} ahora tiene un valor de disponibilidad: {}", nombre, nuevo_estado);
+                return Ok(())
+            }
+        }
+        Err(Errores::LibroNoExiste.into()) 
+    }
+}
+
+#[error_code]
+pub enum Errores {
+    #[msg("Error, no eres propietario de la cuenta")]
+     NoEresElOwer,
+     #[msg("Error, el libro proporcionado no existe")]
+     LibroNoExiste,
 }
 
 #[account]
 #[derive(InitSpace)]
-pub struct Biblioteca {
-    ower: Pubkey,
+pub struct Biblioteca{
+    owner: Pubkey,
 
     #[max_len(60)]
     nombre: String,
 
     #[max_len(10)]
-    libros: Vec<Libro>,
-}
+    libros: Vec<Libros>,
+} 
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Debug)]
-pub struct Libro{
-    #[max_leg(60)]
-    nombre:String,
+pub struct Libros {
+    #[max_len(60)]
+    nombre: String,
 
     paginas: u16,
-
-    disponibles: bool,
+    
+    disponible: bool,
 }
 
 #[derive(Accounts)]
-pub struct NuevaBiblioteca{
-    pub ower: Signer<'info>,
-    pub biblioteca: Account<'info, Biblioteca>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct NuevoLibro{
+pub struct NuevaBiblioteca<'info> {
     #[account(mut)]
-    pub ower: Signer<'info>,
+    pub owner: Signer<'info>,
 
     #[account(
         init,
-        payer = ower,
-        space = Biblioteca:: INITI_SPACE + 8,
-        seeds = [b"biblioteca", ower.key().as_ref()]
+        payer = owner,
+        space = Biblioteca::INIT_SPACE + 8,
+        seeds = [b"biblioteca", owner.key().as_ref()],
+        bump
     )]
     pub biblioteca: Account<'info, Biblioteca>,
+
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)] 
+pub struct NuevoLibro<'info> {
+    pub owner: Signer<'info>, 
+    #[account(mut)] 
+    pub biblioteca: Account<'info, Biblioteca>, 
 }
