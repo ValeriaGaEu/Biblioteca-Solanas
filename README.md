@@ -108,13 +108,3 @@ Rust — Lenguaje del programa
 
 Proyecto desarrollado por Valeria Gallegos como parte de su práctica y aprendizaje en desarrollo Web3 sobre Solana.
 
-Si quieres puedo ahora:
-
-Hacerlo todavía más profesional (nivel portafolio)
-
-Agregar sección técnica explicando validaciones
-
-O ayudarte a escribir la descripción del repositorio arriba donde dice "About"
-
-Dime qué nivel quieres que tenga:
-Básico ⭐ | Intermedio ⭐⭐ | Profesional ⭐⭐⭐
